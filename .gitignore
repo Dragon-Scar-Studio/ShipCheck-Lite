@@ -1,0 +1,12 @@
+.godot/
+*.import
+*.uid
+*.tmp
+
+shipcheck_config.cfg
+shipcheck_ignore.cfg
+shipcheck_report.*
+shipcheck_baseline.cfg
+
+.DS_Store
+Thumbs.db
