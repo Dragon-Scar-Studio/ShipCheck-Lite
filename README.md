@@ -15,3 +15,9 @@ Lite exports Markdown reports from the editor and supports project-level config 
 ## Pro
 
 ShipCheck Pro is the paid version with CI/CLI scans, baselines, JSON/HTML reports, advanced GDScript rules, scene connection checks, stale UID checks, asset hygiene checks, and performance hot-path checks.
+
+Pro repo: [Dragon-Scar-Studio/ShipCheck-Pro](https://github.com/Dragon-Scar-Studio/ShipCheck-Pro)
+
+## License
+
+ShipCheck Lite is proprietary software owned by Dragon Scar Studio, LLC. You may use and modify it for your own projects, but you may not redistribute it or claim it as your own. See [LICENSE](LICENSE).

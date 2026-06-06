@@ -155,3 +155,13 @@ The strongest pitch is the release-risk angle: ShipCheck catches the dull mistak
 ## Safety Notes
 
 This MVP does not delete files. That is intentional. Future cleanup features should use quarantine and backup workflows before permanent deletion.
+
+## Pro
+
+ShipCheck Pro adds CI/CLI scans, baselines, JSON/HTML reports, advanced GDScript rules, scene connection checks, stale UID checks, asset hygiene checks, and performance hot-path checks.
+
+Pro repo: [Dragon-Scar-Studio/ShipCheck-Pro](https://github.com/Dragon-Scar-Studio/ShipCheck-Pro)
+
+## License
+
+ShipCheck Lite is proprietary software owned by Dragon Scar Studio, LLC. You may use and modify it for your own projects, but you may not redistribute it or claim it as your own. See `LICENSE.txt`.
