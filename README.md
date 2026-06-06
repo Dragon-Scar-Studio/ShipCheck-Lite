@@ -16,7 +16,7 @@ Lite exports Markdown reports from the editor and supports project-level config 
 
 ShipCheck Pro is the paid version with CI/CLI scans, baselines, JSON/HTML reports, advanced GDScript rules, scene connection checks, stale UID checks, asset hygiene checks, and performance hot-path checks.
 
-Pro repo: [Dragon-Scar-Studio/ShipCheck-Pro](https://github.com/Dragon-Scar-Studio/ShipCheck-Pro)
+Purchase Pro: [ShipCheck-Pro on itch.io](https://dragonscarstudio.itch.io/shipcheck-for-godot)
 
 ## License
 
