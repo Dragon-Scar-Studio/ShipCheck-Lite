@@ -164,4 +164,4 @@ Pro repo: [Dragon-Scar-Studio/ShipCheck-Pro](https://github.com/Dragon-Scar-Stud
 
 ## License
 
-ShipCheck Lite is proprietary software owned by Dragon Scar Studio, LLC. You may use and modify it for your own projects, but you may not redistribute it or claim it as your own. See `LICENSE.txt`.
+ShipCheck Lite is proprietary software owned by Dragon Scar Studio, LLC. You may use and modify it for your own projects, but you may not redistribute it or claim it as your own. See `LICENSE`.
