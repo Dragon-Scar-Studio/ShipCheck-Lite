@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0
+
+- Added Lite Default and Lite Loose scan presets with in-editor descriptions.
+- Added release status and score breakdown summaries in the editor dock.
+- Added grouped results by release blockers, category, severity, scanner, and file.
+- Added issue detail guidance for why each finding matters and when it is reasonable to ignore.
+- Added ignore-by-file from the editor dock.
+- Improved Markdown reports with category summaries, blocker summaries, and score breakdowns.
+- Updated docs and packaged README content for 1.0.
+
 ## 0.10.0
 
 - Added Lite/Pro edition foundation.
