@@ -139,6 +139,9 @@ func _apply_defaults() -> void:
 	_set_default("general", "include_addons", false)
 	_set_default("general", "show_suppressed_issues", false)
 
+	_set_default("presets", "lite_default_description", "Core free pre-export scan for common release risks.")
+	_set_default("presets", "lite_loose_description", "Lower-noise scan for early projects and messy prototypes.")
+
 	_set_default("scanners", "missing_script", true)
 	_set_default("scanners", "broken_resource", true)
 	_set_default("scanners", "case_sensitive_path", true)

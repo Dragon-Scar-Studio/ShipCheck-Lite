@@ -6,6 +6,9 @@ const CONFIG_PATH := "res://shipcheck_ignore.cfg"
 const DEFAULT_IGNORED_PATHS := [
 	"res://.godot/",
 	"res://shipcheck_report.md",
+	"res://shipcheck_report.html",
+	"res://shipcheck_report.json",
+	"res://shipcheck_baseline.cfg",
 	"res://shipcheck_ignore.cfg",
 	"res://shipcheck_config.cfg"
 ]
@@ -74,6 +77,46 @@ func add_issue_ignore(issue: ShipCheckIssue) -> Error:
 	var save_error := _save_pretty(paths, scanners, ids)
 	if save_error == OK:
 		ignored_issue_ids = ids
+	return save_error
+
+
+func add_path_ignore(path: String) -> Error:
+	var config := ConfigFile.new()
+	if FileAccess.file_exists(CONFIG_PATH):
+		var load_error := config.load(CONFIG_PATH)
+		if load_error != OK:
+			return load_error
+
+	_ensure_default_sections(config)
+	var paths := _to_packed_string_array(config.get_value("paths", "ignore", []))
+	if path != "" and not paths.has(path):
+		paths.append(path)
+
+	var scanners := _to_packed_string_array(config.get_value("scanners", "ignore", []))
+	var ids := _to_packed_string_array(config.get_value("issues", "ignore_ids", []))
+	var save_error := _save_pretty(paths, scanners, ids)
+	if save_error == OK:
+		ignored_paths = paths
+	return save_error
+
+
+func add_scanner_ignore(scanner: String) -> Error:
+	var config := ConfigFile.new()
+	if FileAccess.file_exists(CONFIG_PATH):
+		var load_error := config.load(CONFIG_PATH)
+		if load_error != OK:
+			return load_error
+
+	_ensure_default_sections(config)
+	var scanners := _to_packed_string_array(config.get_value("scanners", "ignore", []))
+	if scanner != "" and not scanners.has(scanner):
+		scanners.append(scanner)
+
+	var paths := _to_packed_string_array(config.get_value("paths", "ignore", []))
+	var ids := _to_packed_string_array(config.get_value("issues", "ignore_ids", []))
+	var save_error := _save_pretty(paths, scanners, ids)
+	if save_error == OK:
+		ignored_scanners = scanners
 	return save_error
 
 

@@ -17,6 +17,8 @@ var shipcheck_config: ShipCheckConfig
 
 var score_label: Label
 var status_label: Label
+var preset_description_label: Label
+var breakdown_label: Label
 var issue_tree: Tree
 var details: TextEdit
 var search_box: LineEdit
@@ -24,12 +26,14 @@ var critical_filter: CheckBox
 var error_filter: CheckBox
 var warning_filter: CheckBox
 var info_filter: CheckBox
+var preset_dropdown: OptionButton
 var group_dropdown: OptionButton
 var scan_button: Button
 var export_button: Button
 var open_button: Button
 var copy_button: Button
 var ignore_button: Button
+var ignore_file_button: Button
 var open_ignore_button: Button
 var open_config_button: Button
 var clear_button: Button
@@ -61,13 +65,13 @@ func _build_ui() -> void:
 	subtitle.modulate = Color(0.72, 0.76, 0.84)
 	add_child(subtitle)
 
-	var scan_row := HBoxContainer.new()
+	var scan_row := HFlowContainer.new()
 	add_child(scan_row)
 
 	scan_button = Button.new()
 	scan_button.text = "Scan"
-	scan_button.tooltip_text = "Runs the Lite Default scan."
-	scan_button.pressed.connect(func() -> void: _run_scan())
+	scan_button.tooltip_text = "Run ShipCheck Lite with the selected preset."
+	scan_button.pressed.connect(func() -> void: _run_scan(_get_selected_preset()))
 	scan_row.add_child(scan_button)
 
 	clear_button = Button.new()
@@ -75,6 +79,26 @@ func _build_ui() -> void:
 	clear_button.tooltip_text = "Clear the current ShipCheck results."
 	clear_button.pressed.connect(_clear_results)
 	scan_row.add_child(clear_button)
+
+	var preset_row := HBoxContainer.new()
+	add_child(preset_row)
+
+	var preset_label := Label.new()
+	preset_label.text = "Preset"
+	preset_row.add_child(preset_label)
+
+	preset_dropdown = OptionButton.new()
+	for preset in ShipCheckScannerRegistryScript.get_presets():
+		preset_dropdown.add_item(preset)
+	preset_dropdown.tooltip_text = "Choose the Lite scan type."
+	preset_dropdown.item_selected.connect(func(_index: int) -> void: _refresh_preset_description())
+	preset_row.add_child(preset_dropdown)
+
+	preset_description_label = Label.new()
+	preset_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preset_description_label.modulate = Color(0.72, 0.76, 0.84)
+	add_child(preset_description_label)
+	_refresh_preset_description()
 
 	score_label = Label.new()
 	score_label.text = "Project Health: --"
@@ -87,11 +111,16 @@ func _build_ui() -> void:
 	status_label.modulate = Color(0.72, 0.76, 0.84)
 	add_child(status_label)
 
+	breakdown_label = Label.new()
+	breakdown_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	breakdown_label.modulate = Color(0.72, 0.76, 0.84)
+	add_child(breakdown_label)
+
 	var filter_label := Label.new()
 	filter_label.text = "Filters"
 	add_child(filter_label)
 
-	var filter_row := HBoxContainer.new()
+	var filter_row := HFlowContainer.new()
 	add_child(filter_row)
 
 	critical_filter = _make_filter_checkbox("Critical", true)
@@ -111,7 +140,7 @@ func _build_ui() -> void:
 	view_row.add_child(group_label)
 
 	group_dropdown = OptionButton.new()
-	for option in ["Flat", "Severity", "Scanner", "File"]:
+	for option in ["Flat", "Release Blockers", "Category", "Severity", "Scanner", "File"]:
 		group_dropdown.add_item(option)
 	group_dropdown.item_selected.connect(func(_index: int) -> void: _refresh_issue_tree())
 	view_row.add_child(group_dropdown)
@@ -139,38 +168,32 @@ func _build_ui() -> void:
 	issue_tree.item_selected.connect(_on_issue_selected)
 	add_child(issue_tree)
 
-	var action_row := HBoxContainer.new()
+	var action_row := HFlowContainer.new()
 	add_child(action_row)
 
-	open_button = Button.new()
-	open_button.text = "Open File"
-	open_button.disabled = true
-	open_button.pressed.connect(_on_open_file_pressed)
+	open_button = _make_action_button("Open File", _on_open_file_pressed)
+	copy_button = _make_action_button("Copy Path", _on_copy_path_pressed)
+	ignore_button = _make_action_button("Ignore Issue", _on_ignore_issue_pressed)
+	ignore_file_button = _make_action_button("Ignore File", _on_ignore_file_pressed)
 	action_row.add_child(open_button)
-
-	copy_button = Button.new()
-	copy_button.text = "Copy Path"
-	copy_button.disabled = true
-	copy_button.pressed.connect(_on_copy_path_pressed)
 	action_row.add_child(copy_button)
-
-	ignore_button = Button.new()
-	ignore_button.text = "Ignore Issue"
-	ignore_button.disabled = true
-	ignore_button.pressed.connect(_on_ignore_issue_pressed)
 	action_row.add_child(ignore_button)
+	action_row.add_child(ignore_file_button)
+
+	var config_row := HFlowContainer.new()
+	add_child(config_row)
 
 	open_ignore_button = Button.new()
 	open_ignore_button.text = "Open Ignore"
 	open_ignore_button.tooltip_text = "Create or open res://shipcheck_ignore.cfg."
 	open_ignore_button.pressed.connect(_on_open_ignore_pressed)
-	action_row.add_child(open_ignore_button)
+	config_row.add_child(open_ignore_button)
 
 	open_config_button = Button.new()
 	open_config_button.text = "Open Config"
 	open_config_button.tooltip_text = "Create or open res://shipcheck_config.cfg."
 	open_config_button.pressed.connect(_on_open_config_pressed)
-	action_row.add_child(open_config_button)
+	config_row.add_child(open_config_button)
 
 	export_button = Button.new()
 	export_button.text = "Export Markdown"
@@ -179,11 +202,19 @@ func _build_ui() -> void:
 	add_child(export_button)
 
 	details = TextEdit.new()
-	details.custom_minimum_size = Vector2(0, 180)
+	details.custom_minimum_size = Vector2(0, 190)
 	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	details.editable = false
 	details.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	add_child(details)
+
+
+func _make_action_button(label: String, callable: Callable) -> Button:
+	var button := Button.new()
+	button.text = label
+	button.disabled = true
+	button.pressed.connect(callable)
+	return button
 
 
 func _make_filter_checkbox(label: String, pressed: bool) -> CheckBox:
@@ -192,6 +223,24 @@ func _make_filter_checkbox(label: String, pressed: bool) -> CheckBox:
 	checkbox.button_pressed = pressed
 	checkbox.toggled.connect(func(_pressed: bool) -> void: _refresh_issue_tree())
 	return checkbox
+
+
+func _get_selected_preset() -> String:
+	if preset_dropdown == null or preset_dropdown.item_count == 0:
+		return ShipCheckScannerRegistryScript.get_default_preset()
+	return preset_dropdown.get_item_text(preset_dropdown.selected)
+
+
+func _refresh_preset_description() -> void:
+	if preset_description_label == null:
+		return
+	var preset := _get_selected_preset()
+	var metadata := ShipCheckScannerRegistryScript.get_preset_metadata(preset)
+	preset_description_label.text = "%s %s Scanner count: %d." % [
+		str(metadata.get("description", "")),
+		str(metadata.get("recommended_use", "")),
+		int(metadata.get("scanner_count", 0)),
+	]
 
 
 func _set_empty_state() -> void:
@@ -208,6 +257,8 @@ func _clear_results() -> void:
 		score_label.text = "Project Health: --"
 	if status_label != null:
 		status_label.text = "No scan run yet."
+	if breakdown_label != null:
+		breakdown_label.text = ""
 	if issue_tree != null:
 		issue_tree.clear()
 	if details != null:
@@ -216,9 +267,9 @@ func _clear_results() -> void:
 	_set_report_buttons_disabled(true)
 
 
-func _run_scan() -> void:
+func _run_scan(profile: String) -> void:
 	current_report = ShipCheckReportScript.new()
-	current_report.profile_name = "Lite Default"
+	current_report.profile_name = ShipCheckScannerRegistryScript.normalize_preset(profile)
 	selected_issue = null
 	shipcheck_config = ShipCheckConfigScript.load_from_project()
 	shipcheck_config.ensure_config_exists()
@@ -244,7 +295,7 @@ func _run_scan() -> void:
 		"ignore": ignore_rules,
 		"config": shipcheck_config,
 	}
-	for scanner in ShipCheckScannerRegistryScript.instantiate_scanners("Lite Default", shipcheck_config):
+	for scanner in ShipCheckScannerRegistryScript.instantiate_scanners(current_report.profile_name, shipcheck_config):
 		if status_label != null:
 			status_label.text = "Running %s..." % scanner.get_scanner_name()
 		await get_tree().process_frame
@@ -283,9 +334,25 @@ func _update_summary() -> void:
 	var warnings := current_report.get_count(ShipCheckIssue.Severity.WARNING)
 	var info := current_report.get_count(ShipCheckIssue.Severity.INFO)
 	if score_label != null:
-		score_label.text = "Project Health: %d/100" % current_report.get_score()
+		score_label.text = "Project Health: %d/100 | %s" % [current_report.get_score(), current_report.get_release_status()]
 	if status_label != null:
-		status_label.text = "Scan complete: %d critical, %d errors, %d warnings, %d info" % [critical, errors, warnings, info]
+		status_label.text = "Scan complete: %d total, %d blockers, %d critical, %d errors, %d warnings, %d info" % [
+			current_report.get_total_count(),
+			current_report.get_blocker_count(),
+			critical,
+			errors,
+			warnings,
+			info,
+		]
+	if breakdown_label != null:
+		breakdown_label.text = _format_score_breakdown(current_report.get_score_breakdown())
+
+
+func _format_score_breakdown(breakdown: Dictionary) -> String:
+	var parts: Array[String] = []
+	for key in breakdown.keys():
+		parts.append("%s: %d" % [_humanize_key(key), int(breakdown[key])])
+	return " | ".join(parts)
 
 
 func _refresh_issue_tree() -> void:
@@ -342,6 +409,14 @@ func _get_group_mode() -> String:
 
 func _get_issue_group_key(issue: ShipCheckIssue, group_mode: String) -> String:
 	match group_mode:
+		"Release Blockers":
+			if issue.severity >= ShipCheckIssue.Severity.ERROR:
+				return "Release Blockers"
+			if issue.severity == ShipCheckIssue.Severity.WARNING:
+				return "Review Warnings"
+			return "Info"
+		"Category":
+			return issue.category if issue.category != "" else "General"
 		"Severity":
 			return issue.get_severity_label()
 		"Scanner":
@@ -373,12 +448,14 @@ func _issue_passes_filters(issue: ShipCheckIssue) -> bool:
 	if query == "":
 		return true
 
-	var haystack := "%s %s %s %s %s" % [
+	var haystack := "%s %s %s %s %s %s %s" % [
 		issue.title,
 		issue.message,
 		issue.file_path,
 		issue.detail,
 		issue.fix_hint,
+		issue.category,
+		issue.scanner_name,
 	]
 	return haystack.to_lower().contains(query)
 
@@ -404,6 +481,7 @@ func _on_issue_selected() -> void:
 	_set_button_disabled(open_button, selected_issue == null or selected_issue.file_path == "")
 	_set_button_disabled(copy_button, selected_issue == null or selected_issue.file_path == "")
 	_set_button_disabled(ignore_button, selected_issue == null)
+	_set_button_disabled(ignore_file_button, selected_issue == null or selected_issue.file_path == "")
 	if selected_issue == null:
 		if details != null:
 			details.text = ""
@@ -419,6 +497,8 @@ func _on_issue_selected() -> void:
 		lines.append("Scanner: %s" % selected_issue.scanner_name)
 	if selected_issue.rule_id != "":
 		lines.append("Rule: %s" % selected_issue.get_rule_key())
+	if selected_issue.category != "":
+		lines.append("Category: %s" % selected_issue.category)
 	if location != "":
 		lines.append("Location: %s" % location)
 	lines.append("")
@@ -436,6 +516,10 @@ func _on_issue_selected() -> void:
 		lines.append("")
 		lines.append("Suggested Fix:")
 		lines.append(selected_issue.fix_hint)
+	if selected_issue.ignore_hint != "":
+		lines.append("")
+		lines.append("When To Ignore:")
+		lines.append(selected_issue.ignore_hint)
 
 	if details != null:
 		details.text = "\n".join(lines)
@@ -478,10 +562,23 @@ func _on_copy_path_pressed() -> void:
 func _on_ignore_issue_pressed() -> void:
 	if selected_issue == null:
 		return
+	_add_ignore_and_remove_selected("issue")
 
+
+func _on_ignore_file_pressed() -> void:
+	if selected_issue == null or selected_issue.file_path == "":
+		return
+	_add_ignore_and_remove_selected("file")
+
+
+func _add_ignore_and_remove_selected(mode: String) -> void:
 	var include_addons := shipcheck_config != null and shipcheck_config.should_include_addons()
 	var rules: ShipCheckIgnore = ShipCheckIgnoreScript.load_from_project(include_addons)
-	var error := rules.add_issue_ignore(selected_issue)
+	var error := OK
+	if mode == "file":
+		error = rules.add_path_ignore(selected_issue.file_path)
+	else:
+		error = rules.add_issue_ignore(selected_issue)
 	if error != OK:
 		if details != null:
 			details.text = "Could not update res://shipcheck_ignore.cfg."
@@ -491,13 +588,13 @@ func _on_ignore_issue_pressed() -> void:
 	_refresh_editor_filesystem()
 	ignore_rules = ShipCheckIgnoreScript.load_from_project(include_addons)
 	if current_report != null:
-		current_report.issues.erase(selected_issue)
+		current_report.issues = _filter_ignored_issues(current_report.issues)
 		selected_issue = null
 		_set_action_buttons_disabled(true)
 		_update_summary()
 		_refresh_issue_tree()
 		if details != null:
-			details.text = "Ignored issue. Edit res://shipcheck_ignore.cfg to manage ignore rules."
+			details.text = "Updated res://shipcheck_ignore.cfg. Use Open Ignore to review ignored issues and files."
 
 
 func _on_open_ignore_pressed() -> void:
@@ -558,6 +655,8 @@ func _on_export_report_pressed() -> void:
 
 	file.store_string(current_report.to_markdown())
 	file.close()
+	if details != null:
+		details.text = "Exported %s." % path
 	_refresh_editor_filesystem()
 	_update_summary()
 
@@ -566,6 +665,7 @@ func _set_action_buttons_disabled(disabled: bool) -> void:
 	_set_button_disabled(open_button, disabled)
 	_set_button_disabled(copy_button, disabled)
 	_set_button_disabled(ignore_button, disabled)
+	_set_button_disabled(ignore_file_button, disabled)
 
 
 func _set_report_buttons_disabled(disabled: bool) -> void:
@@ -580,3 +680,10 @@ func _set_scan_buttons_disabled(disabled: bool) -> void:
 func _set_button_disabled(button: Button, disabled: bool) -> void:
 	if button != null:
 		button.disabled = disabled
+
+
+func _humanize_key(key: String) -> String:
+	var words: Array[String] = []
+	for part in key.split("_", false):
+		words.append(part.capitalize())
+	return " ".join(words)

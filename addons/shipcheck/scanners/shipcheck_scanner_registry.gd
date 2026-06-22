@@ -13,7 +13,7 @@ const ExportPresetScannerScript := preload("res://addons/shipcheck/scanners/expo
 const LargeAssetScannerScript := preload("res://addons/shipcheck/scanners/large_asset_scanner.gd")
 const ReleaseRiskScannerScript := preload("res://addons/shipcheck/scanners/release_risk_scanner.gd")
 
-const LITE_SCANNERS := [
+const LITE_DEFAULT_SCANNERS := [
 	"missing_script",
 	"broken_resource",
 	"case_sensitive_path",
@@ -22,6 +22,16 @@ const LITE_SCANNERS := [
 	"debug_code",
 	"export_preset",
 	"large_asset",
+	"release_risk",
+]
+
+const LITE_LOOSE_SCANNERS := [
+	"missing_script",
+	"broken_resource",
+	"case_sensitive_path",
+	"project_settings",
+	"input_map",
+	"export_preset",
 	"release_risk",
 ]
 
@@ -39,23 +49,54 @@ static func get_default_preset() -> String:
 
 
 static func get_presets() -> PackedStringArray:
-	return PackedStringArray(["Lite Default"])
+	return PackedStringArray(["Lite Default", "Lite Loose"])
 
 
-static func normalize_preset(_preset: String) -> String:
-	return "Lite Default"
+static func normalize_preset(preset: String) -> String:
+	match preset.strip_edges().to_lower():
+		"loose", "lite loose":
+			return "Lite Loose"
+		_:
+			return "Lite Default"
 
 
-static func get_scanner_entries(_preset: String) -> Array:
+static func get_preset_metadata(preset: String) -> Dictionary:
+	var normalized := normalize_preset(preset)
+	var scanner_ids := _get_scanner_ids_for_preset(normalized)
+	var metadata := {
+		"Lite Default": {
+			"name": "Lite Default",
+			"short_description": "Free core scan for common pre-export issues.",
+			"description": "Runs the Lite reference, settings, input, debug, export, asset-size, and basic release-risk checks. Good before sharing builds or uploading jam/student projects.",
+			"recommended_use": "Use this for normal Lite scans before exporting.",
+		},
+		"Lite Loose": {
+			"name": "Lite Loose",
+			"short_description": "Lower-noise scan for early projects.",
+			"description": "Runs the Lite checks most likely to catch broken builds while skipping debug leftovers and large asset warnings. Good when a project is still messy but you want real blockers.",
+			"recommended_use": "Use this while prototyping or cleaning up a noisy project.",
+		},
+	}
+	var result: Dictionary = metadata.get(normalized, metadata["Lite Default"]).duplicate()
+	result["scanner_count"] = scanner_ids.size()
+	result["scanners"] = scanner_ids
+	return result
+
+
+static func get_preset_description(preset: String) -> String:
+	return str(get_preset_metadata(preset).get("description", ""))
+
+
+static func get_scanner_entries(preset: String) -> Array:
 	var entries: Array = []
-	for scanner_id in LITE_SCANNERS:
+	for scanner_id in _get_scanner_ids_for_preset(normalize_preset(preset)):
 		entries.append(get_scanner_metadata(scanner_id))
 	return entries
 
 
-static func instantiate_scanners(_preset: String, config = null) -> Array:
+static func instantiate_scanners(preset: String, config = null) -> Array:
 	var scanners: Array = []
-	for scanner_id in LITE_SCANNERS:
+	for scanner_id in _get_scanner_ids_for_preset(normalize_preset(preset)):
 		var metadata := get_scanner_metadata(scanner_id)
 		var default_enabled := bool(metadata.get("default_enabled_lite", true))
 		if config != null and not config.is_scanner_enabled(scanner_id, default_enabled):
@@ -80,7 +121,7 @@ static func get_scanner_metadata(scanner_id: String) -> Dictionary:
 		"broken_resource": {
 			"scanner_id": "broken_resource",
 			"display_name": "Broken Resource Scanner",
-			"description": "Finds res:// references that do not resolve.",
+			"description": "Finds quoted res:// references that do not resolve.",
 			"edition": "lite",
 			"default_enabled_lite": true,
 			"category": "References",
@@ -143,6 +184,12 @@ static func get_scanner_metadata(scanner_id: String) -> Dictionary:
 		},
 	}
 	return metadata.get(scanner_id, {})
+
+
+static func _get_scanner_ids_for_preset(preset: String) -> Array:
+	if preset == "Lite Loose":
+		return LITE_LOOSE_SCANNERS.duplicate()
+	return LITE_DEFAULT_SCANNERS.duplicate()
 
 
 static func _new_scanner(scanner_id: String):
