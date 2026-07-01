@@ -8,7 +8,7 @@ enum Edition {
 }
 
 const CURRENT_EDITION := Edition.LITE
-const VERSION := "1.0.1"
+const VERSION := "1.0.0"
 
 
 static func get_current_edition() -> Edition:

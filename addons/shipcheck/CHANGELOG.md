@@ -1,11 +1,5 @@
 # Changelog
 
-## 1.0.1 - Plugin Config Hotfix
-
-- Fixed `plugin.cfg` encoding so Godot can read the plugin metadata and show ShipCheck Lite in Project Settings > Plugins.
-- Removed UTF-8 BOMs from addon metadata files that could confuse Godot's config loader.
-- Rebuilt the Lite package with clean addon metadata for Godot 4.6 and 4.7.
-
 ## 1.0.0 - Stable Lite Release
 
 ShipCheck Lite 1.0 turns the free edition into a complete editor-side pre-export check for Godot 4 projects.
@@ -24,10 +18,14 @@ ShipCheck Lite 1.0 turns the free edition into a complete editor-side pre-export
 
 - Improved Markdown reports with category summaries, blocker summaries, and score breakdowns.
 - Improved the editor dock layout around scan presets, filters, grouping, search, and issue details.
+- Wrapped the dock UI in a scroll container so ShipCheck no longer forces Godot's bottom panels to collapse on startup.
+- Updated scan completion feedback so the details panel no longer stays on "Scanning..." after a scan finishes.
+- Changed ignore-file loading so existing `shipcheck_ignore.cfg` path entries are respected instead of silently re-adding removed defaults.
 - Improved Lite docs so the free edition explains exactly what it does and how it differs from Pro.
 
 ### Packaging
 
+- Fixed `plugin.cfg` encoding so Godot can read ShipCheck Lite in Project Settings > Plugins.
 - Updated docs and packaged README content for 1.0.
 - Kept README, LICENSE, and CHANGELOG inside `addons/shipcheck` for asset-store packaging.
 - Rebuilt the release zip without repository metadata, fixtures, temp files, or test-only content.

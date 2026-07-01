@@ -37,6 +37,7 @@ var ignore_file_button: Button
 var open_ignore_button: Button
 var open_config_button: Button
 var clear_button: Button
+var content: VBoxContainer
 var built := false
 
 
@@ -54,19 +55,31 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	custom_minimum_size = Vector2(260, 0)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
+
+	content = VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
 
 	var title := Label.new()
 	title.text = "ShipCheck Lite"
 	title.add_theme_font_size_override("font_size", 18)
-	add_child(title)
+	content.add_child(title)
 
 	var subtitle := Label.new()
 	subtitle.text = "Free pre-export project health checks"
 	subtitle.modulate = Color(0.72, 0.76, 0.84)
-	add_child(subtitle)
+	content.add_child(subtitle)
 
 	var scan_row := HFlowContainer.new()
-	add_child(scan_row)
+	content.add_child(scan_row)
 
 	scan_button = Button.new()
 	scan_button.text = "Scan"
@@ -81,7 +94,7 @@ func _build_ui() -> void:
 	scan_row.add_child(clear_button)
 
 	var preset_row := HBoxContainer.new()
-	add_child(preset_row)
+	content.add_child(preset_row)
 
 	var preset_label := Label.new()
 	preset_label.text = "Preset"
@@ -97,31 +110,31 @@ func _build_ui() -> void:
 	preset_description_label = Label.new()
 	preset_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	preset_description_label.modulate = Color(0.72, 0.76, 0.84)
-	add_child(preset_description_label)
+	content.add_child(preset_description_label)
 	_refresh_preset_description()
 
 	score_label = Label.new()
 	score_label.text = "Project Health: --"
 	score_label.add_theme_font_size_override("font_size", 15)
-	add_child(score_label)
+	content.add_child(score_label)
 
 	status_label = Label.new()
 	status_label.text = "No scan run yet."
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.modulate = Color(0.72, 0.76, 0.84)
-	add_child(status_label)
+	content.add_child(status_label)
 
 	breakdown_label = Label.new()
 	breakdown_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	breakdown_label.modulate = Color(0.72, 0.76, 0.84)
-	add_child(breakdown_label)
+	content.add_child(breakdown_label)
 
 	var filter_label := Label.new()
 	filter_label.text = "Filters"
-	add_child(filter_label)
+	content.add_child(filter_label)
 
 	var filter_row := HFlowContainer.new()
-	add_child(filter_row)
+	content.add_child(filter_row)
 
 	critical_filter = _make_filter_checkbox("Critical", true)
 	error_filter = _make_filter_checkbox("Errors", true)
@@ -133,7 +146,7 @@ func _build_ui() -> void:
 	filter_row.add_child(info_filter)
 
 	var view_row := HBoxContainer.new()
-	add_child(view_row)
+	content.add_child(view_row)
 
 	var group_label := Label.new()
 	group_label.text = "Group"
@@ -148,7 +161,7 @@ func _build_ui() -> void:
 	search_box = LineEdit.new()
 	search_box.placeholder_text = "Search issues..."
 	search_box.text_changed.connect(func(_text: String) -> void: _refresh_issue_tree())
-	add_child(search_box)
+	content.add_child(search_box)
 
 	issue_tree = Tree.new()
 	issue_tree.columns = 4
@@ -166,10 +179,10 @@ func _build_ui() -> void:
 	issue_tree.set_column_custom_minimum_width(3, 48)
 	issue_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	issue_tree.item_selected.connect(_on_issue_selected)
-	add_child(issue_tree)
+	content.add_child(issue_tree)
 
 	var action_row := HFlowContainer.new()
-	add_child(action_row)
+	content.add_child(action_row)
 
 	open_button = _make_action_button("Open File", _on_open_file_pressed)
 	copy_button = _make_action_button("Copy Path", _on_copy_path_pressed)
@@ -181,7 +194,7 @@ func _build_ui() -> void:
 	action_row.add_child(ignore_file_button)
 
 	var config_row := HFlowContainer.new()
-	add_child(config_row)
+	content.add_child(config_row)
 
 	open_ignore_button = Button.new()
 	open_ignore_button.text = "Open Ignore"
@@ -199,14 +212,14 @@ func _build_ui() -> void:
 	export_button.text = "Export Markdown"
 	export_button.disabled = true
 	export_button.pressed.connect(_on_export_report_pressed)
-	add_child(export_button)
+	content.add_child(export_button)
 
 	details = TextEdit.new()
 	details.custom_minimum_size = Vector2(0, 190)
 	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	details.editable = false
 	details.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-	add_child(details)
+	content.add_child(details)
 
 
 func _make_action_button(label: String, callable: Callable) -> Button:
@@ -305,6 +318,8 @@ func _run_scan(profile: String) -> void:
 	current_report.issues.sort_custom(_compare_issues)
 	_update_summary()
 	_refresh_issue_tree()
+	if details != null and selected_issue == null and not current_report.issues.is_empty():
+		details.text = "Scan complete. Select an issue to see details."
 	_set_report_buttons_disabled(false)
 	_set_scan_buttons_disabled(false)
 

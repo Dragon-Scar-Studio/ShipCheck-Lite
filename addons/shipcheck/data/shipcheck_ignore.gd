@@ -31,10 +31,8 @@ static func load_from_project(p_include_addons: bool = false) -> ShipCheckIgnore
 	if error != OK:
 		return rules
 
-	rules.ignored_paths = rules._merge_string_arrays(
-		rules.ignored_paths,
-		rules._to_packed_string_array(config.get_value("paths", "ignore", []))
-	)
+	if config.has_section_key("paths", "ignore"):
+		rules.ignored_paths = rules._to_packed_string_array(config.get_value("paths", "ignore", []))
 	rules.ignored_issue_ids = rules._to_packed_string_array(config.get_value("issues", "ignore_ids", []))
 	rules.ignored_scanners = rules._to_packed_string_array(config.get_value("scanners", "ignore", []))
 	return rules
@@ -128,7 +126,7 @@ func ensure_config_exists() -> Error:
 			return load_error
 
 	_ensure_default_sections(config)
-	var paths := _merge_string_arrays(_get_default_ignored_paths(), _to_packed_string_array(config.get_value("paths", "ignore", [])))
+	var paths := _to_packed_string_array(config.get_value("paths", "ignore", []))
 	var scanners := _to_packed_string_array(config.get_value("scanners", "ignore", []))
 	var ids := _to_packed_string_array(config.get_value("issues", "ignore_ids", []))
 	return _save_pretty(paths, scanners, ids)

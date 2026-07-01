@@ -4,7 +4,7 @@ ShipCheck Lite is a free Godot 4 editor addon for quick pre-export health checks
 
 Lite runs inside the Godot editor and does not delete or rewrite project files.
 
-Verified with Godot `4.6.2.stable.official.71f334935`.
+Verified with Godot `4.7.stable.official`.
 
 ## 1.0 Features
 
