@@ -40,6 +40,18 @@ var clear_button: Button
 var content: VBoxContainer
 var built := false
 
+const ISSUE_ACTION_OPEN := 1
+const ISSUE_ACTION_COPY := 2
+const ISSUE_ACTION_IGNORE := 3
+const ISSUE_ACTION_IGNORE_FILE := 4
+const PROJECT_ACTION_OPEN_IGNORE := 10
+const PROJECT_ACTION_OPEN_CONFIG := 11
+const REPORT_ACTION_MARKDOWN := 20
+
+var issue_actions_menu: MenuButton
+var project_menu: MenuButton
+var report_menu: MenuButton
+
 
 func set_editor_interface(p_editor_interface) -> void:
 	editor_interface = p_editor_interface
@@ -56,17 +68,12 @@ func _ready() -> void:
 func _build_ui() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	custom_minimum_size = Vector2(260, 0)
+	custom_minimum_size = Vector2(320, 0)
+	add_theme_constant_override("separation", 7)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-
-	content = VBoxContainer.new()
+	content = self
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(content)
+	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	var title := Label.new()
 	title.text = "ShipCheck Lite"
@@ -104,6 +111,7 @@ func _build_ui() -> void:
 	for preset in ShipCheckScannerRegistryScript.get_presets():
 		preset_dropdown.add_item(preset)
 	preset_dropdown.tooltip_text = "Choose the Lite scan type."
+	preset_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preset_dropdown.item_selected.connect(func(_index: int) -> void: _refresh_preset_description())
 	preset_row.add_child(preset_dropdown)
 
@@ -155,6 +163,7 @@ func _build_ui() -> void:
 	group_dropdown = OptionButton.new()
 	for option in ["Flat", "Release Blockers", "Category", "Severity", "Scanner", "File"]:
 		group_dropdown.add_item(option)
+	group_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	group_dropdown.item_selected.connect(func(_index: int) -> void: _refresh_issue_tree())
 	view_row.add_child(group_dropdown)
 
@@ -163,63 +172,96 @@ func _build_ui() -> void:
 	search_box.text_changed.connect(func(_text: String) -> void: _refresh_issue_tree())
 	content.add_child(search_box)
 
+	var command_row := HFlowContainer.new()
+	command_row.add_theme_constant_override("h_separation", 6)
+	command_row.add_theme_constant_override("v_separation", 4)
+	content.add_child(command_row)
+
+	issue_actions_menu = _make_menu_button("Issue")
+	issue_actions_menu.tooltip_text = "Actions for the selected issue."
+	issue_actions_menu.get_popup().add_item("Open File", ISSUE_ACTION_OPEN)
+	issue_actions_menu.get_popup().add_item("Copy Path", ISSUE_ACTION_COPY)
+	issue_actions_menu.get_popup().add_separator()
+	issue_actions_menu.get_popup().add_item("Ignore Issue", ISSUE_ACTION_IGNORE)
+	issue_actions_menu.get_popup().add_item("Ignore File", ISSUE_ACTION_IGNORE_FILE)
+	issue_actions_menu.get_popup().id_pressed.connect(_on_issue_action_pressed)
+	command_row.add_child(issue_actions_menu)
+
+	project_menu = _make_menu_button("Project")
+	project_menu.tooltip_text = "ShipCheck config files."
+	project_menu.get_popup().add_item("Open Ignore", PROJECT_ACTION_OPEN_IGNORE)
+	project_menu.get_popup().add_item("Open Config", PROJECT_ACTION_OPEN_CONFIG)
+	project_menu.get_popup().id_pressed.connect(_on_project_action_pressed)
+	command_row.add_child(project_menu)
+
+	report_menu = _make_menu_button("Report")
+	report_menu.tooltip_text = "Export the current scan."
+	report_menu.get_popup().add_item("Export Markdown", REPORT_ACTION_MARKDOWN)
+	report_menu.get_popup().id_pressed.connect(_on_report_action_pressed)
+	command_row.add_child(report_menu)
+
+	var results_split := VSplitContainer.new()
+	results_split.custom_minimum_size = Vector2(0, 380)
+	results_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	results_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(results_split)
+
 	issue_tree = Tree.new()
 	issue_tree.columns = 4
 	issue_tree.column_titles_visible = true
 	issue_tree.hide_root = true
-	issue_tree.set_column_title(0, "Severity")
+	issue_tree.set_column_title(0, "Sev")
 	issue_tree.set_column_title(1, "Issue")
 	issue_tree.set_column_title(2, "File")
 	issue_tree.set_column_title(3, "Line")
 	issue_tree.set_column_expand(0, false)
-	issue_tree.set_column_custom_minimum_width(0, 86)
+	issue_tree.set_column_custom_minimum_width(0, 50)
 	issue_tree.set_column_expand(1, true)
+	issue_tree.set_column_custom_minimum_width(1, 140)
 	issue_tree.set_column_expand(2, true)
+	issue_tree.set_column_custom_minimum_width(2, 120)
 	issue_tree.set_column_expand(3, false)
-	issue_tree.set_column_custom_minimum_width(3, 48)
+	issue_tree.set_column_custom_minimum_width(3, 42)
+	issue_tree.custom_minimum_size = Vector2(0, 220)
 	issue_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	issue_tree.item_selected.connect(_on_issue_selected)
-	content.add_child(issue_tree)
-
-	var action_row := HFlowContainer.new()
-	content.add_child(action_row)
+	results_split.add_child(issue_tree)
 
 	open_button = _make_action_button("Open File", _on_open_file_pressed)
 	copy_button = _make_action_button("Copy Path", _on_copy_path_pressed)
 	ignore_button = _make_action_button("Ignore Issue", _on_ignore_issue_pressed)
 	ignore_file_button = _make_action_button("Ignore File", _on_ignore_file_pressed)
-	action_row.add_child(open_button)
-	action_row.add_child(copy_button)
-	action_row.add_child(ignore_button)
-	action_row.add_child(ignore_file_button)
-
-	var config_row := HFlowContainer.new()
-	content.add_child(config_row)
 
 	open_ignore_button = Button.new()
 	open_ignore_button.text = "Open Ignore"
 	open_ignore_button.tooltip_text = "Create or open res://shipcheck_ignore.cfg."
 	open_ignore_button.pressed.connect(_on_open_ignore_pressed)
-	config_row.add_child(open_ignore_button)
 
 	open_config_button = Button.new()
 	open_config_button.text = "Open Config"
 	open_config_button.tooltip_text = "Create or open res://shipcheck_config.cfg."
 	open_config_button.pressed.connect(_on_open_config_pressed)
-	config_row.add_child(open_config_button)
 
 	export_button = Button.new()
 	export_button.text = "Export Markdown"
 	export_button.disabled = true
 	export_button.pressed.connect(_on_export_report_pressed)
-	content.add_child(export_button)
 
 	details = TextEdit.new()
-	details.custom_minimum_size = Vector2(0, 190)
+	details.custom_minimum_size = Vector2(0, 150)
 	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	details.editable = false
 	details.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-	content.add_child(details)
+	results_split.add_child(details)
+	_refresh_action_menus()
+
+
+func _make_menu_button(label: String) -> MenuButton:
+	var button := MenuButton.new()
+	button.text = label
+	button.flat = false
+	button.focus_mode = Control.FOCUS_NONE
+	return button
 
 
 func _make_action_button(label: String, callable: Callable) -> Button:
@@ -249,11 +291,13 @@ func _refresh_preset_description() -> void:
 		return
 	var preset := _get_selected_preset()
 	var metadata := ShipCheckScannerRegistryScript.get_preset_metadata(preset)
-	preset_description_label.text = "%s %s Scanner count: %d." % [
-		str(metadata.get("description", "")),
-		str(metadata.get("recommended_use", "")),
+	var description := str(metadata.get("description", "")).strip_edges()
+	var recommended_use := str(metadata.get("recommended_use", "")).strip_edges()
+	preset_description_label.text = "%s - %d scanners" % [
+		description,
 		int(metadata.get("scanner_count", 0)),
 	]
+	preset_description_label.tooltip_text = recommended_use
 
 
 func _set_empty_state() -> void:
@@ -349,9 +393,9 @@ func _update_summary() -> void:
 	var warnings := current_report.get_count(ShipCheckIssue.Severity.WARNING)
 	var info := current_report.get_count(ShipCheckIssue.Severity.INFO)
 	if score_label != null:
-		score_label.text = "Project Health: %d/100 | %s" % [current_report.get_score(), current_report.get_release_status()]
+		score_label.text = "Health: %d/100 - %s" % [current_report.get_score(), current_report.get_release_status()]
 	if status_label != null:
-		status_label.text = "Scan complete: %d total, %d blockers, %d critical, %d errors, %d warnings, %d info" % [
+		status_label.text = "%d total - %d blockers - %d critical - %d errors - %d warnings - %d info" % [
 			current_report.get_total_count(),
 			current_report.get_blocker_count(),
 			critical,
@@ -366,8 +410,13 @@ func _update_summary() -> void:
 func _format_score_breakdown(breakdown: Dictionary) -> String:
 	var parts: Array[String] = []
 	for key in breakdown.keys():
-		parts.append("%s: %d" % [_humanize_key(key), int(breakdown[key])])
-	return " | ".join(parts)
+		var value := int(breakdown[key])
+		if value == 0:
+			continue
+		parts.append("%s: %d" % [_humanize_key(key), value])
+	if parts.is_empty():
+		return "Risk breakdown: none"
+	return "Risk: %s" % " | ".join(parts)
 
 
 func _refresh_issue_tree() -> void:
@@ -400,7 +449,7 @@ func _refresh_issue_tree() -> void:
 
 		var item := issue_tree.create_item(parent)
 		var severity_color := _get_severity_color(issue.severity)
-		item.set_text(0, issue.get_severity_label())
+		item.set_text(0, _get_tree_severity_label(issue.severity))
 		item.set_text(1, issue.title)
 		item.set_text(2, issue.file_path)
 		item.set_text(3, str(issue.line_number) if issue.line_number > 0 else "")
@@ -487,16 +536,25 @@ func _get_severity_color(severity: ShipCheckIssue.Severity) -> Color:
 			return Color(0.62, 0.78, 1.0)
 
 
+func _get_tree_severity_label(severity: ShipCheckIssue.Severity) -> String:
+	match severity:
+		ShipCheckIssue.Severity.CRITICAL:
+			return "CRIT"
+		ShipCheckIssue.Severity.ERROR:
+			return "ERR"
+		ShipCheckIssue.Severity.WARNING:
+			return "WARN"
+		_:
+			return "INFO"
+
+
 func _on_issue_selected() -> void:
 	var item := issue_tree.get_selected()
 	if item == null:
 		return
 
 	selected_issue = item.get_metadata(0)
-	_set_button_disabled(open_button, selected_issue == null or selected_issue.file_path == "")
-	_set_button_disabled(copy_button, selected_issue == null or selected_issue.file_path == "")
-	_set_button_disabled(ignore_button, selected_issue == null)
-	_set_button_disabled(ignore_file_button, selected_issue == null or selected_issue.file_path == "")
+	_refresh_action_menus()
 	if selected_issue == null:
 		if details != null:
 			details.text = ""
@@ -681,10 +739,15 @@ func _set_action_buttons_disabled(disabled: bool) -> void:
 	_set_button_disabled(copy_button, disabled)
 	_set_button_disabled(ignore_button, disabled)
 	_set_button_disabled(ignore_file_button, disabled)
+	if disabled:
+		selected_issue = null
+	_refresh_action_menus()
 
 
 func _set_report_buttons_disabled(disabled: bool) -> void:
 	_set_button_disabled(export_button, disabled)
+	if report_menu != null:
+		report_menu.disabled = disabled
 
 
 func _set_scan_buttons_disabled(disabled: bool) -> void:
@@ -695,6 +758,54 @@ func _set_scan_buttons_disabled(disabled: bool) -> void:
 func _set_button_disabled(button: Button, disabled: bool) -> void:
 	if button != null:
 		button.disabled = disabled
+
+
+func _refresh_action_menus() -> void:
+	var has_issue := selected_issue != null
+	var has_path := has_issue and selected_issue.file_path != ""
+	if issue_actions_menu != null:
+		issue_actions_menu.disabled = not has_issue
+		var popup := issue_actions_menu.get_popup()
+		_set_popup_item_disabled(popup, ISSUE_ACTION_OPEN, not has_path)
+		_set_popup_item_disabled(popup, ISSUE_ACTION_COPY, not has_path)
+		_set_popup_item_disabled(popup, ISSUE_ACTION_IGNORE, not has_issue)
+		_set_popup_item_disabled(popup, ISSUE_ACTION_IGNORE_FILE, not has_path)
+	if report_menu != null:
+		report_menu.disabled = current_report == null
+
+
+func _set_popup_item_disabled(popup: PopupMenu, id: int, disabled: bool) -> void:
+	if popup == null:
+		return
+	var index := popup.get_item_index(id)
+	if index >= 0:
+		popup.set_item_disabled(index, disabled)
+
+
+func _on_issue_action_pressed(id: int) -> void:
+	match id:
+		ISSUE_ACTION_OPEN:
+			_on_open_file_pressed()
+		ISSUE_ACTION_COPY:
+			_on_copy_path_pressed()
+		ISSUE_ACTION_IGNORE:
+			_on_ignore_issue_pressed()
+		ISSUE_ACTION_IGNORE_FILE:
+			_on_ignore_file_pressed()
+
+
+func _on_project_action_pressed(id: int) -> void:
+	match id:
+		PROJECT_ACTION_OPEN_IGNORE:
+			_on_open_ignore_pressed()
+		PROJECT_ACTION_OPEN_CONFIG:
+			_on_open_config_pressed()
+
+
+func _on_report_action_pressed(id: int) -> void:
+	match id:
+		REPORT_ACTION_MARKDOWN:
+			_on_export_report_pressed()
 
 
 func _humanize_key(key: String) -> String:
